@@ -1,6 +1,9 @@
 node_modules/
 backend/.env
+backend/__pycache__/
+backend/*.txt
 __pycache__/
 *.pyc
+*.txt
 build/
 .env
