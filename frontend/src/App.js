@@ -4,7 +4,7 @@ import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Ba
 import jsPDF from 'jspdf';
 import './App.css';
 
-const API = 'https://socialspy.onrender.com';
+const API = 'http://localhost:8000';
 
 const CATEGORIES = {
   Developer: ['github', 'gitlab', 'codechef', 'codeforces', 'hackerrank', 'leetcode', 'stackoverflow', 'replit', 'codeberg', 'gitea', 'coderwall', 'codewars', 'hackerearth', 'hackernews', 'hackerone', 'codesandbox', 'codecademy'],
@@ -20,8 +20,9 @@ const COLORS = ['#a78bfa', '#60a5fa', '#34d399', '#f472b6', '#fbbf24', '#94a3b8'
 const TABS = [
   { id: 'search', label: '🔍 Search' },
   { id: 'breach', label: '🔓 Breach Check' },
-  { id: 'compare', label: ' Compare' },
-  { id: 'personality', label: ' Personality' },
+  { id: 'compare', label: '⚖️ Compare' },
+  { id: 'personality', label: '🧠 Personality' },
+  { id: 'location', label: '🗺️ Location' },
 ];
 
 export default function App() {
@@ -48,6 +49,11 @@ export default function App() {
   const [pUsername, setPUsername] = useState('');
   const [pLoading, setPLoading] = useState(false);
   const [pResult, setPResult] = useState(null);
+
+  // Location state
+  const [locUsername, setLocUsername] = useState('');
+  const [locLoading, setLocLoading] = useState(false);
+  const [locResult, setLocResult] = useState(null);
 
   const getCategoryData = (accounts = []) => {
     const counts = { Developer: 0, Gaming: 0, Social: 0, Music: 0, Creative: 0, Other: 0 };
@@ -122,6 +128,19 @@ export default function App() {
     setPLoading(false);
   };
 
+  const handleLocation = async () => {
+    if (!locUsername.trim()) return;
+    setLocLoading(true);
+    setLocResult(null);
+    try {
+      const res = await axios.post(`${API}/location`, { username: locUsername });
+      setLocResult(res.data);
+    } catch (err) {
+      setLocResult({ error: 'Something went wrong!' });
+    }
+    setLocLoading(false);
+  };
+
   const exportPDF = () => {
     const doc = new jsPDF();
     doc.setFontSize(20);
@@ -162,7 +181,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1> SocialSpy</h1>
+        <h1>🕵️ SocialSpy</h1>
         <p>AI-Powered Digital Footprint Analyzer</p>
       </header>
 
@@ -194,7 +213,7 @@ export default function App() {
                   onKeyDown={e => e.key === 'Enter' && handleSearch()}
                   className="input" />
                 <button onClick={handleSearch} disabled={loading} className="btn">
-                  {loading ? ' Searching...' : ' Search'}
+                  {loading ? '⏳ Searching...' : '🔍 Search'}
                 </button>
               </div>
             </div>
@@ -213,7 +232,7 @@ export default function App() {
               <>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
                   <button onClick={exportPDF} className="btn" style={{ background: '#1e1e1e', border: '1px solid #a78bfa', color: '#a78bfa' }}>
-                     Export PDF
+                    📤 Export PDF
                   </button>
                 </div>
                 <div className="stats-grid">
@@ -251,12 +270,12 @@ export default function App() {
                 )}
 
                 <div className="card">
-                  <h2> AI Analysis</h2>
+                  <h2>🤖 AI Analysis</h2>
                   <div className="analysis">{result.analysis}</div>
                 </div>
 
                 <div className="card">
-                  <h2> Found Accounts ({result.found_count})</h2>
+                  <h2>✅ Found Accounts ({result.found_count})</h2>
                   <div className="accounts-grid">
                     {accounts.map((url, i) => (
                       <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="account-card">
@@ -274,7 +293,7 @@ export default function App() {
         {activeTab === 'breach' && (
           <>
             <div className="card">
-              <h2> Email Breach Checker</h2>
+              <h2>🔓 Email Breach Checker</h2>
               <p style={{ color: '#888', marginBottom: '20px', fontSize: '0.9rem' }}>
                 Check if your email was exposed in any data breach
               </p>
@@ -284,7 +303,7 @@ export default function App() {
                   onKeyDown={e => e.key === 'Enter' && handleBreach()}
                   className="input" />
                 <button onClick={handleBreach} disabled={breachLoading} className="btn">
-                  {breachLoading ? ' Checking...' : ' Check'}
+                  {breachLoading ? '⏳ Checking...' : '🔓 Check'}
                 </button>
               </div>
             </div>
@@ -308,7 +327,7 @@ export default function App() {
                     </div>
                     {breachResult.breaches.map((b, i) => (
                       <div key={i} style={{ background: '#1a1a1a', borderRadius: '8px', padding: '12px', marginBottom: '10px', border: '1px solid #2a2a2a' }}>
-                        <p style={{ color: '#ff6666', fontWeight: '600' }}> {b.name}</p>
+                        <p style={{ color: '#ff6666', fontWeight: '600' }}>🔴 {b.name}</p>
                         <p style={{ color: '#888', fontSize: '0.82rem' }}>Domain: {b.domain} | Date: {b.date}</p>
                       </div>
                     ))}
@@ -328,7 +347,7 @@ export default function App() {
         {activeTab === 'compare' && (
           <>
             <div className="card">
-              <h2> Compare Usernames</h2>
+              <h2>⚖️ Compare Usernames</h2>
               <p style={{ color: '#888', marginBottom: '20px', fontSize: '0.9rem' }}>
                 Compare digital footprints of two usernames
               </p>
@@ -339,14 +358,14 @@ export default function App() {
                   onChange={e => setUsername2(e.target.value)} className="input" />
               </div>
               <button onClick={handleCompare} disabled={compareLoading} className="btn" style={{ width: '100%' }}>
-                {compareLoading ? ' Comparing... (takes 2 mins)' : ' Compare'}
+                {compareLoading ? '⏳ Comparing... (takes 2 mins)' : '⚖️ Compare'}
               </button>
             </div>
 
             {compareLoading && (
               <div className="card" style={{ textAlign: 'center' }}>
                 <div className="spinner"></div>
-                <p style={{ color: '#a78bfa', marginTop: '16px' }}> Searching both usernames...</p>
+                <p style={{ color: '#a78bfa', marginTop: '16px' }}>⚖️ Searching both usernames...</p>
                 <p style={{ color: '#888', fontSize: '0.85rem' }}>This takes 2-3 minutes</p>
               </div>
             )}
@@ -384,7 +403,7 @@ export default function App() {
                 </div>
 
                 <div className="card">
-                  <h2> AI Comparison Analysis</h2>
+                  <h2>🤖 AI Comparison Analysis</h2>
                   <div className="analysis">{compareResult.analysis}</div>
                 </div>
               </>
@@ -396,7 +415,7 @@ export default function App() {
         {activeTab === 'personality' && (
           <>
             <div className="card">
-              <h2>AI Personality Analyzer</h2>
+              <h2>🧠 AI Personality Analyzer</h2>
               <p style={{ color: '#888', marginBottom: '20px', fontSize: '0.9rem' }}>
                 Discover personality insights from someone's digital footprint
               </p>
@@ -406,7 +425,7 @@ export default function App() {
                   onKeyDown={e => e.key === 'Enter' && handlePersonality()}
                   className="input" />
                 <button onClick={handlePersonality} disabled={pLoading} className="btn">
-                  {pLoading ? ' Analyzing...' : ' Analyze'}
+                  {pLoading ? '⏳ Analyzing...' : '🧠 Analyze'}
                 </button>
               </div>
             </div>
@@ -414,7 +433,7 @@ export default function App() {
             {pLoading && (
               <div className="card" style={{ textAlign: 'center' }}>
                 <div className="spinner"></div>
-                <p style={{ color: '#a78bfa', marginTop: '16px' }}> Analyzing personality...</p>
+                <p style={{ color: '#a78bfa', marginTop: '16px' }}>🧠 Analyzing personality...</p>
                 <p style={{ color: '#888', fontSize: '0.85rem' }}>This may take 30-60 seconds</p>
               </div>
             )}
@@ -425,11 +444,56 @@ export default function App() {
                   <p style={{ color: '#ff6666' }}>❌ {pResult.error}</p>
                 ) : (
                   <>
-                    <h2>Personality Profile — {pResult.username}</h2>
+                    <h2>🧠 Personality Profile — {pResult.username}</h2>
                     <p style={{ color: '#888', marginBottom: '16px', fontSize: '0.85rem' }}>
                       Based on {pResult.platform_count} platforms found
                     </p>
                     <div className="analysis">{pResult.personality}</div>
+                  </>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* LOCATION TAB */}
+        {activeTab === 'location' && (
+          <>
+            <div className="card">
+              <h2>🗺️ Location Detector</h2>
+              <p style={{ color: '#888', marginBottom: '20px', fontSize: '0.9rem' }}>
+                Guess someone's country from their digital footprint
+              </p>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <input type="text" placeholder="Enter username (e.g. john)" value={locUsername}
+                  onChange={e => setLocUsername(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleLocation()}
+                  className="input" />
+                <button onClick={handleLocation} disabled={locLoading} className="btn">
+                  {locLoading ? '⏳ Detecting...' : '🗺️ Detect'}
+                </button>
+              </div>
+            </div>
+
+            {locLoading && (
+              <div className="card" style={{ textAlign: 'center' }}>
+                <div className="spinner"></div>
+                <p style={{ color: '#a78bfa', marginTop: '16px' }}>🗺️ Analyzing location...</p>
+                <p style={{ color: '#888', fontSize: '0.85rem' }}>This may take 30-60 seconds</p>
+              </div>
+            )}
+
+            {locResult && !locLoading && (
+              <div className="card">
+                {locResult.error ? (
+                  <p style={{ color: '#ff6666' }}>❌ {locResult.error}</p>
+                ) : (
+                  <>
+                    <h2>🗺️ Location Analysis — {locResult.username}</h2>
+                    <p style={{ color: '#888', marginBottom: '16px', fontSize: '0.85rem' }}>
+                      Based on {locResult.platform_count} platforms found
+                    </p>
+                    <div className="analysis">{locResult.location_analysis}</div>
                   </>
                 )}
               </div>

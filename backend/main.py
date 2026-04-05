@@ -32,6 +32,26 @@ class CompareRequest(BaseModel):
     username1: str
     username2: str
 
+def run_sherlock(username):
+    result = subprocess.run(
+        ["py", "-3.11", "-m", "sherlock_project.sherlock", username, "--print-found", "--timeout", "10"],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env={**os.environ, "NO_COLOR": "1"}
+    )
+    output = result.stdout
+    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    clean_output = ansi_escape.sub('', output)
+    found = []
+    for line in clean_output.splitlines():
+        line = line.strip()
+        if "[+]" in line and "http" in line:
+            urls = re.findall(r'https?://[^\s]+', line)
+            if urls:
+                found.append(urls[0])
+    return found
+
 @app.get("/")
 def root():
     return {"message": "SocialSpy API is running!"}
@@ -40,25 +60,7 @@ def root():
 def search_username(request: SearchRequest):
     username = request.username.strip()
     try:
-        result = subprocess.run(
-            ["py", "-3.11", "-m", "sherlock_project.sherlock", username, "--print-found", "--timeout", "10"],
-            capture_output=True,
-            text=True,
-            timeout=120,
-            env={**os.environ, "NO_COLOR": "1"}
-        )
-        output = result.stdout
-        print("RAW OUTPUT:", output[:500])
-        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-        clean_output = ansi_escape.sub('', output)
-        print("CLEAN OUTPUT:", clean_output[:500])
-        found = []
-        for line in clean_output.splitlines():
-            line = line.strip()
-            if "[+]" in line and "http" in line:
-                urls = re.findall(r'https?://[^\s]+', line)
-                if urls:
-                    found.append(urls[0])
+        found = run_sherlock(username)
         print("FOUND:", len(found), "accounts")
         platform_names = [url.split('/')[2].replace('www.', '') for url in found[:20]]
         ai_prompt = f"""
@@ -75,12 +77,11 @@ def search_username(request: SearchRequest):
             messages=[{"role": "user", "content": ai_prompt}],
             max_tokens=500
         )
-        analysis = chat.choices[0].message.content
         return {
             "username": username,
             "found_count": len(found),
             "accounts": found,
-            "analysis": analysis
+            "analysis": chat.choices[0].message.content
         }
     except subprocess.TimeoutExpired:
         return {"error": "Search timed out. Try again!"}
@@ -94,10 +95,7 @@ async def check_breach(request: BreachRequest):
         async with httpx.AsyncClient() as http_client:
             response = await http_client.get(
                 f"https://haveibeenpwned.com/api/v3/breachedaccount/{email}",
-                headers={
-                    "hibp-api-key": "free",
-                    "User-Agent": "SocialSpy-App"
-                },
+                headers={"hibp-api-key": "free", "User-Agent": "SocialSpy-App"},
                 timeout=10
             )
             if response.status_code == 404:
@@ -128,33 +126,12 @@ def compare_usernames(request: CompareRequest):
     results = {}
     for username in [request.username1, request.username2]:
         try:
-            result = subprocess.run(
-                ["py", "-3.11", "-m", "sherlock_project.sherlock", username, "--print-found", "--timeout", "10"],
-                capture_output=True,
-                text=True,
-                timeout=120,
-                env={**os.environ, "NO_COLOR": "1"}
-            )
-            output = result.stdout
-            ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-            clean_output = ansi_escape.sub('', output)
-            found = []
-            for line in clean_output.splitlines():
-                line = line.strip()
-                if "[+]" in line and "http" in line:
-                    urls = re.findall(r'https?://[^\s]+', line)
-                    if urls:
-                        found.append(urls[0])
-            results[username] = found
-        except Exception as e:
+            results[username] = run_sherlock(username)
+        except Exception:
             results[username] = []
 
     u1, u2 = request.username1, request.username2
-    common = set(
-        [url.split('/')[2] for url in results[u1]]
-    ) & set(
-        [url.split('/')[2] for url in results[u2]]
-    )
+    common = set([url.split('/')[2] for url in results[u1]]) & set([url.split('/')[2] for url in results[u2]])
 
     ai_prompt = f"""
     Compare these two digital footprints:
@@ -168,7 +145,6 @@ def compare_usernames(request: CompareRequest):
         messages=[{"role": "user", "content": ai_prompt}],
         max_tokens=300
     )
-
     return {
         "username1": u1,
         "username2": u2,
@@ -184,26 +160,8 @@ def compare_usernames(request: CompareRequest):
 def personality_analysis(request: SearchRequest):
     username = request.username.strip()
     try:
-        result = subprocess.run(
-            ["py", "-3.11", "-m", "sherlock_project.sherlock", username, "--print-found", "--timeout", "10"],
-            capture_output=True,
-            text=True,
-            timeout=120,
-            env={**os.environ, "NO_COLOR": "1"}
-        )
-        output = result.stdout
-        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-        clean_output = ansi_escape.sub('', output)
-        found = []
-        for line in clean_output.splitlines():
-            line = line.strip()
-            if "[+]" in line and "http" in line:
-                urls = re.findall(r'https?://[^\s]+', line)
-                if urls:
-                    found.append(urls[0])
-
+        found = run_sherlock(username)
         platform_names = [url.split('/')[2].replace('www.', '') for url in found]
-
         ai_prompt = f"""
         Username "{username}" has accounts on these platforms: {platform_names}.
         Based on these platforms, create a detailed personality profile:
@@ -224,6 +182,49 @@ def personality_analysis(request: SearchRequest):
             "username": username,
             "platform_count": len(found),
             "personality": chat.choices[0].message.content
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/location")
+def detect_location(request: SearchRequest):
+    username = request.username.strip()
+    try:
+        found = run_sherlock(username)
+        platform_names = [url.split('/')[2].replace('www.', '') for url in found]
+        ai_prompt = f"""
+        Username "{username}" has accounts on these platforms: {platform_names}.
+        Based on platform popularity by region, analyze and provide:
+        1. 🌍 Most likely Country (be specific)
+        2. 🗣️ Most likely Language
+        3. 🕐 Most likely Timezone
+        4. 📊 Confidence Level (Low/Medium/High)
+        5. 🔍 Reasoning — which platforms gave this away
+        6. 🌐 Alternative possible countries
+
+        Some hints:
+        - VK.com → Russia
+        - Weibo → China
+        - Naver → South Korea/Japan
+        - Rajce → Czech Republic
+        - Kaskus → Indonesia
+        - Wykop → Poland
+        - Linux.org.ru → Russia
+        - Chatujme.cz → Czech Republic
+        - Diskusjon.no → Norway
+        - Kvinneguiden → Norway
+
+        Be specific and insightful!
+        """
+        chat = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": ai_prompt}],
+            max_tokens=500
+        )
+        return {
+            "username": username,
+            "platform_count": len(found),
+            "location_analysis": chat.choices[0].message.content
         }
     except Exception as e:
         return {"error": str(e)}
