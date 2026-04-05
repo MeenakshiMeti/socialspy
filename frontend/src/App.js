@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis } from 'recharts';
 import jsPDF from 'jspdf';
 import './App.css';
 
-const API ='https://socialspy.onrender.com';
+const API = 'https://socialspy.onrender.com';
 
 const CATEGORIES = {
   Developer: ['github', 'gitlab', 'codechef', 'codeforces', 'hackerrank', 'leetcode', 'stackoverflow', 'replit', 'codeberg', 'gitea', 'coderwall', 'codewars', 'hackerearth', 'hackernews', 'hackerone', 'codesandbox', 'codecademy'],
@@ -25,32 +25,30 @@ const TABS = [
   { id: 'location', label: '🗺️ Location' },
 ];
 
+const urlParams = new URLSearchParams(window.location.search);
+const urlUsername = urlParams.get('username') || '';
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('search');
 
-  // Search state
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(urlUsername);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
 
-  // Breach state
   const [email, setEmail] = useState('');
   const [breachLoading, setBreachLoading] = useState(false);
   const [breachResult, setBreachResult] = useState(null);
 
-  // Compare state
   const [username1, setUsername1] = useState('');
   const [username2, setUsername2] = useState('');
   const [compareLoading, setCompareLoading] = useState(false);
   const [compareResult, setCompareResult] = useState(null);
 
-  // Personality state
   const [pUsername, setPUsername] = useState('');
   const [pLoading, setPLoading] = useState(false);
   const [pResult, setPResult] = useState(null);
 
-  // Location state
   const [locUsername, setLocUsername] = useState('');
   const [locLoading, setLocLoading] = useState(false);
   const [locResult, setLocResult] = useState(null);
@@ -75,19 +73,27 @@ export default function App() {
       .map(([name, value]) => ({ name, value }));
   };
 
-  const handleSearch = async () => {
-    if (!username.trim()) return;
+  const handleSearch = async (searchUsername) => {
+    const uname = searchUsername || username;
+    if (!uname.trim()) return;
     setLoading(true);
     setError('');
     setResult(null);
     try {
-      const res = await axios.post(`${API}/search`, { username });
+      const res = await axios.post(`${API}/search`, { username: uname });
       setResult(res.data);
     } catch (err) {
       setError('Something went wrong. Is the backend running?');
     }
     setLoading(false);
   };
+
+  // Auto search if username in URL
+  useEffect(() => {
+    if (urlUsername) {
+      handleSearch(urlUsername);
+    }
+  }, []);
 
   const handleBreach = async () => {
     if (!email.trim()) return;
@@ -187,19 +193,14 @@ export default function App() {
 
       <nav className="tabs">
         {TABS.map(tab => (
-          <button
-            key={tab.id}
-            className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
+          <button key={tab.id} className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}>
             {tab.label}
           </button>
         ))}
       </nav>
 
       <main className="main">
-
-        {/* SEARCH TAB */}
         {activeTab === 'search' && (
           <>
             <div className="card">
@@ -212,7 +213,7 @@ export default function App() {
                   onChange={e => setUsername(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleSearch()}
                   className="input" />
-                <button onClick={handleSearch} disabled={loading} className="btn">
+                <button onClick={() => handleSearch()} disabled={loading} className="btn">
                   {loading ? '⏳ Searching...' : '🔍 Search'}
                 </button>
               </div>
@@ -289,7 +290,6 @@ export default function App() {
           </>
         )}
 
-        {/* BREACH CHECK TAB */}
         {activeTab === 'breach' && (
           <>
             <div className="card">
@@ -307,14 +307,12 @@ export default function App() {
                 </button>
               </div>
             </div>
-
             {breachLoading && (
               <div className="card" style={{ textAlign: 'center' }}>
                 <div className="spinner"></div>
                 <p style={{ color: '#a78bfa', marginTop: '16px' }}>Checking breach databases...</p>
               </div>
             )}
-
             {breachResult && !breachLoading && (
               <div className="card">
                 {breachResult.error ? (
@@ -343,7 +341,6 @@ export default function App() {
           </>
         )}
 
-        {/* COMPARE TAB */}
         {activeTab === 'compare' && (
           <>
             <div className="card">
@@ -361,7 +358,6 @@ export default function App() {
                 {compareLoading ? '⏳ Comparing... (takes 2 mins)' : '⚖️ Compare'}
               </button>
             </div>
-
             {compareLoading && (
               <div className="card" style={{ textAlign: 'center' }}>
                 <div className="spinner"></div>
@@ -369,7 +365,6 @@ export default function App() {
                 <p style={{ color: '#888', fontSize: '0.85rem' }}>This takes 2-3 minutes</p>
               </div>
             )}
-
             {compareResult && !compareLoading && (
               <>
                 <div className="stats-grid">
@@ -386,7 +381,6 @@ export default function App() {
                     <p className="stat-label">{compareResult.username2} accounts</p>
                   </div>
                 </div>
-
                 <div className="card">
                   <h2>📊 Comparison Chart</h2>
                   <ResponsiveContainer width="100%" height={200}>
@@ -401,7 +395,6 @@ export default function App() {
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-
                 <div className="card">
                   <h2>🤖 AI Comparison Analysis</h2>
                   <div className="analysis">{compareResult.analysis}</div>
@@ -411,7 +404,6 @@ export default function App() {
           </>
         )}
 
-        {/* PERSONALITY TAB */}
         {activeTab === 'personality' && (
           <>
             <div className="card">
@@ -429,7 +421,6 @@ export default function App() {
                 </button>
               </div>
             </div>
-
             {pLoading && (
               <div className="card" style={{ textAlign: 'center' }}>
                 <div className="spinner"></div>
@@ -437,7 +428,6 @@ export default function App() {
                 <p style={{ color: '#888', fontSize: '0.85rem' }}>This may take 30-60 seconds</p>
               </div>
             )}
-
             {pResult && !pLoading && (
               <div className="card">
                 {pResult.error ? (
@@ -456,7 +446,6 @@ export default function App() {
           </>
         )}
 
-        {/* LOCATION TAB */}
         {activeTab === 'location' && (
           <>
             <div className="card">
@@ -474,7 +463,6 @@ export default function App() {
                 </button>
               </div>
             </div>
-
             {locLoading && (
               <div className="card" style={{ textAlign: 'center' }}>
                 <div className="spinner"></div>
@@ -482,7 +470,6 @@ export default function App() {
                 <p style={{ color: '#888', fontSize: '0.85rem' }}>This may take 30-60 seconds</p>
               </div>
             )}
-
             {locResult && !locLoading && (
               <div className="card">
                 {locResult.error ? (
@@ -500,7 +487,6 @@ export default function App() {
             )}
           </>
         )}
-
       </main>
     </div>
   );
