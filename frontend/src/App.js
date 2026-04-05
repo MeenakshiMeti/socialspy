@@ -4,7 +4,7 @@ import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Ba
 import jsPDF from 'jspdf';
 import './App.css';
 
-const API = 'http://localhost:8000';
+const API ='https://socialspy.onrender.com';
 
 const CATEGORIES = {
   Developer: ['github', 'gitlab', 'codechef', 'codeforces', 'hackerrank', 'leetcode', 'stackoverflow', 'replit', 'codeberg', 'gitea', 'coderwall', 'codewars', 'hackerearth', 'hackernews', 'hackerone', 'codesandbox', 'codecademy'],
