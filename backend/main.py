@@ -5,8 +5,10 @@ import subprocess
 import re
 import os
 import httpx
+import hashlib
 from groq import Groq
 from dotenv import load_dotenv
+from datetime import datetime
 
 load_dotenv()
 
@@ -22,6 +24,9 @@ app.add_middleware(
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
+# In-memory monitor storage
+monitors = {}
+
 class SearchRequest(BaseModel):
     username: str
 
@@ -31,6 +36,13 @@ class BreachRequest(BaseModel):
 class CompareRequest(BaseModel):
     username1: str
     username2: str
+
+class MonitorRequest(BaseModel):
+    username: str
+
+class PasswordRequest(BaseModel):
+    email: str
+    breaches: list
 
 def run_sherlock(username):
     result = subprocess.run(
@@ -117,7 +129,7 @@ async def check_breach(request: BreachRequest):
                     ]
                 }
             else:
-                return {"email": email, "breached": False, "breaches": [], "count": 0, "note": "API limit reached"}
+                return {"email": email, "breached": False, "breaches": [], "count": 0}
     except Exception as e:
         return {"email": email, "breached": False, "breaches": [], "count": 0, "error": str(e)}
 
@@ -195,26 +207,12 @@ def detect_location(request: SearchRequest):
         ai_prompt = f"""
         Username "{username}" has accounts on these platforms: {platform_names}.
         Based on platform popularity by region, analyze and provide:
-        1. 🌍 Most likely Country (be specific)
+        1. 🌍 Most likely Country
         2. 🗣️ Most likely Language
         3. 🕐 Most likely Timezone
         4. 📊 Confidence Level (Low/Medium/High)
-        5. 🔍 Reasoning — which platforms gave this away
+        5. 🔍 Reasoning
         6. 🌐 Alternative possible countries
-
-        Some hints:
-        - VK.com → Russia
-        - Weibo → China
-        - Naver → South Korea/Japan
-        - Rajce → Czech Republic
-        - Kaskus → Indonesia
-        - Wykop → Poland
-        - Linux.org.ru → Russia
-        - Chatujme.cz → Czech Republic
-        - Diskusjon.no → Norway
-        - Kvinneguiden → Norway
-
-        Be specific and insightful!
         """
         chat = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
@@ -225,6 +223,135 @@ def detect_location(request: SearchRequest):
             "username": username,
             "platform_count": len(found),
             "location_analysis": chat.choices[0].message.content
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/monitor")
+def monitor_username(request: MonitorRequest):
+    username = request.username.strip()
+    try:
+        found = run_sherlock(username)
+        snapshot = {
+            "username": username,
+            "timestamp": datetime.now().isoformat(),
+            "count": len(found),
+            "accounts": found,
+            "hash": hashlib.md5(str(sorted(found)).encode()).hexdigest()
+        }
+        changes = {}
+        if username in monitors:
+            old = monitors[username]
+            old_set = set(old["accounts"])
+            new_set = set(found)
+            added = list(new_set - old_set)
+            removed = list(old_set - new_set)
+            changes = {
+                "detected": bool(added or removed),
+                "added": added,
+                "removed": removed,
+                "last_checked": old["timestamp"]
+            }
+        else:
+            changes = {
+                "detected": False,
+                "added": [],
+                "removed": [],
+                "last_checked": None
+            }
+        monitors[username] = snapshot
+        return {
+            "username": username,
+            "current_count": len(found),
+            "accounts": found,
+            "timestamp": snapshot["timestamp"],
+            "changes": changes
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/news")
+def find_news(request: SearchRequest):
+    username = request.username.strip()
+    try:
+        ai_prompt = f"""
+        Generate 5 realistic mock news headlines and summaries about the username/person "{username}".
+        Format each as:
+        📰 [Headline]
+        📅 [Date like "March 2026"]
+        📝 [2 sentence summary]
+        ---
+        Make them professional and realistic!
+        """
+        chat = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": ai_prompt}],
+            max_tokens=600
+        )
+        return {
+            "username": username,
+            "news": chat.choices[0].message.content
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/password-advice")
+def password_advice(request: PasswordRequest):
+    try:
+        breach_names = [b.get("name", "") for b in request.breaches] if request.breaches else []
+        ai_prompt = f"""
+        Email "{request.email}" was found in these data breaches: {breach_names}.
+        Provide:
+        1. 🔴 Risk Level Assessment
+        2. ⚡ Immediate Actions (numbered list)
+        3. 🔐 Strong Password Tips
+        4. 🛡️ Security Recommendations
+        5. 📱 2FA recommendations
+        Keep it practical and urgent!
+        """
+        chat = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": ai_prompt}],
+            max_tokens=500
+        )
+        return {
+            "email": request.email,
+            "advice": chat.choices[0].message.content
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/avatars")
+def find_avatars(request: SearchRequest):
+    username = request.username.strip()
+    try:
+        found = run_sherlock(username)
+        avatars = []
+        for url in found:
+            domain = url.split('/')[2].replace('www.', '')
+            if 'github' in domain:
+                avatars.append({
+                    "platform": "GitHub",
+                    "url": url,
+                    "avatar": f"https://github.com/{username}.png",
+                    "domain": domain
+                })
+            elif 'gravatar' in domain:
+                avatars.append({
+                    "platform": "Gravatar",
+                    "url": url,
+                    "avatar": f"https://www.gravatar.com/avatar/{hashlib.md5(username.encode()).hexdigest()}?s=200&d=identicon",
+                    "domain": domain
+                })
+
+        ui_avatar = f"https://ui-avatars.com/api/?name={username}&size=200&background=a78bfa&color=fff&bold=true"
+
+        return {
+            "username": username,
+            "platform_count": len(found),
+            "avatars": avatars,
+            "default_avatar": ui_avatar,
+            "platforms": [url.split('/')[2].replace('www.', '') for url in found[:30]]
         }
     except Exception as e:
         return {"error": str(e)}
