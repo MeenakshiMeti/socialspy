@@ -46,7 +46,7 @@ class PasswordRequest(BaseModel):
 
 def run_sherlock(username):
     result = subprocess.run(
-        ["py", "-3.11", "-m", "sherlock_project.sherlock", username, "--print-found", "--timeout", "10"],
+        ["python3", "-m", "sherlock_project.sherlock", username, "--print-found", "--timeout", "10"],
         capture_output=True,
         text=True,
         timeout=120,
