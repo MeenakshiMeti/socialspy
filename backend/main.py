@@ -4,6 +4,7 @@ from pydantic import BaseModel
 import subprocess
 import re
 import os
+import sys
 import httpx
 import hashlib
 from groq import Groq
@@ -24,7 +25,6 @@ app.add_middleware(
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-# In-memory monitor storage
 monitors = {}
 
 class SearchRequest(BaseModel):
@@ -45,14 +45,17 @@ class PasswordRequest(BaseModel):
     breaches: list
 
 def run_sherlock(username):
+    python_cmd = sys.executable
     result = subprocess.run(
-        ["python3", "-m", "sherlock_project.sherlock", username, "--print-found", "--timeout", "10"],
+        [python_cmd, "-m", "sherlock_project.sherlock", username, "--print-found", "--timeout", "15"],
         capture_output=True,
         text=True,
-        timeout=120,
+        timeout=300,
         env={**os.environ, "NO_COLOR": "1"}
     )
     output = result.stdout
+    print("STDOUT:", output[:500])
+    print("STDERR:", result.stderr[:300])
     ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
     clean_output = ansi_escape.sub('', output)
     found = []
@@ -141,10 +144,8 @@ def compare_usernames(request: CompareRequest):
             results[username] = run_sherlock(username)
         except Exception:
             results[username] = []
-
     u1, u2 = request.username1, request.username2
     common = set([url.split('/')[2] for url in results[u1]]) & set([url.split('/')[2] for url in results[u2]])
-
     ai_prompt = f"""
     Compare these two digital footprints:
     {u1}: found on {len(results[u1])} platforms
@@ -177,12 +178,12 @@ def personality_analysis(request: SearchRequest):
         ai_prompt = f"""
         Username "{username}" has accounts on these platforms: {platform_names}.
         Based on these platforms, create a detailed personality profile:
-        1. 🧠 Personality Type (introvert/extrovert/ambivert)
-        2. 💼 Likely Profession/Industry
-        3. 🎯 Main Interests & Hobbies
-        4. 🌍 Estimated Region/Country
-        5. 📱 Tech Savviness Level (1-10)
-        6. 🎭 Online Persona Description
+        1. Personality Type (introvert/extrovert/ambivert)
+        2. Likely Profession/Industry
+        3. Main Interests & Hobbies
+        4. Estimated Region/Country
+        5. Tech Savviness Level (1-10)
+        6. Online Persona Description
         Keep it fun, insightful and creative!
         """
         chat = client.chat.completions.create(
@@ -207,12 +208,12 @@ def detect_location(request: SearchRequest):
         ai_prompt = f"""
         Username "{username}" has accounts on these platforms: {platform_names}.
         Based on platform popularity by region, analyze and provide:
-        1. 🌍 Most likely Country
-        2. 🗣️ Most likely Language
-        3. 🕐 Most likely Timezone
-        4. 📊 Confidence Level (Low/Medium/High)
-        5. 🔍 Reasoning
-        6. 🌐 Alternative possible countries
+        1. Most likely Country
+        2. Most likely Language
+        3. Most likely Timezone
+        4. Confidence Level (Low/Medium/High)
+        5. Reasoning
+        6. Alternative possible countries
         """
         chat = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
@@ -239,7 +240,6 @@ def monitor_username(request: MonitorRequest):
             "accounts": found,
             "hash": hashlib.md5(str(sorted(found)).encode()).hexdigest()
         }
-        changes = {}
         if username in monitors:
             old = monitors[username]
             old_set = set(old["accounts"])
@@ -302,11 +302,11 @@ def password_advice(request: PasswordRequest):
         ai_prompt = f"""
         Email "{request.email}" was found in these data breaches: {breach_names}.
         Provide:
-        1. 🔴 Risk Level Assessment
-        2. ⚡ Immediate Actions (numbered list)
-        3. 🔐 Strong Password Tips
-        4. 🛡️ Security Recommendations
-        5. 📱 2FA recommendations
+        1. Risk Level Assessment
+        2. Immediate Actions (numbered list)
+        3. Strong Password Tips
+        4. Security Recommendations
+        5. 2FA recommendations
         Keep it practical and urgent!
         """
         chat = client.chat.completions.create(
@@ -343,9 +343,7 @@ def find_avatars(request: SearchRequest):
                     "avatar": f"https://www.gravatar.com/avatar/{hashlib.md5(username.encode()).hexdigest()}?s=200&d=identicon",
                     "domain": domain
                 })
-
         ui_avatar = f"https://ui-avatars.com/api/?name={username}&size=200&background=a78bfa&color=fff&bold=true"
-
         return {
             "username": username,
             "platform_count": len(found),
