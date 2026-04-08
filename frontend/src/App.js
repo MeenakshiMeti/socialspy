@@ -5,7 +5,7 @@ import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Ba
 import jsPDF from 'jspdf';
 import './App.css';
 
-const API = 'https://socialspy.onrender.com';
+const API = 'https://socialspy-production.up.railway.app';
 const axiosInstance = axios.create({ timeout: 120000 });
 
 const CATEGORIES = {
