@@ -7,6 +7,7 @@ import os
 import sys
 import httpx
 import hashlib
+import json
 from groq import Groq
 from dotenv import load_dotenv
 from datetime import datetime
@@ -351,5 +352,102 @@ def find_avatars(request: SearchRequest):
             "default_avatar": ui_avatar,
             "platforms": [url.split('/')[2].replace('www.', '') for url in found[:30]]
         }
+    except Exception as e:
+        return {"error": str(e)}
+
+# ── NEW ENDPOINTS ──────────────────────────────────────────────
+
+@app.post("/timeline")
+def timeline(request: SearchRequest):
+    username = request.username.strip()
+    try:
+        found = run_sherlock(username)
+        platform_names = [url.split('/')[2].replace('www.', '') for url in found]
+        ai_prompt = f"""
+        Username "{username}" has accounts on: {platform_names[:30]}.
+        For each platform, estimate the likely year the account was created (between 2005-2024).
+        Return ONLY a valid JSON array like this:
+        [{{"platform": "github.com", "year": 2018, "category": "Developer"}}, ...]
+        Categories must be one of: Developer, Gaming, Social, Music, Creative, Other.
+        Return only the JSON array, no explanation, no markdown.
+        """
+        chat = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": ai_prompt}],
+            max_tokens=1500
+        )
+        text = chat.choices[0].message.content.strip()
+        text = text.replace('```json', '').replace('```', '').strip()
+        timeline_data = json.loads(text)
+        return {"username": username, "platform_count": len(found), "timeline": timeline_data}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/darkweb")
+def darkweb_scan(request: SearchRequest):
+    username = request.username.strip()
+    try:
+        found = run_sherlock(username)
+        platform_names = [url.split('/')[2].replace('www.', '') for url in found]
+        ai_prompt = f"""
+        Username "{username}" was found on {len(found)} platforms: {platform_names[:20]}.
+        Simulate a realistic dark web scan report. Include:
+        1. Overall Risk Score (0-100 as a number)
+        2. Paste Sites Detected (yes/no + examples like pastebin, ghostbin)
+        3. Forum Mentions (yes/no + hacker forums)
+        4. Leaked Data Risk: Low / Medium / High
+        5. Credential Exposure (likely/unlikely)
+        6. Immediate Recommendations (3 bullet points)
+        Make it feel like a real cybersecurity tool report. Be specific and realistic.
+        """
+        chat = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": ai_prompt}],
+            max_tokens=700
+        )
+        return {
+            "username": username,
+            "platform_count": len(found),
+            "report": chat.choices[0].message.content
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/score")
+def social_score(request: SearchRequest):
+    username = request.username.strip()
+    try:
+        found = run_sherlock(username)
+        platform_names = [url.split('/')[2].replace('www.', '') for url in found[:20]]
+        ai_prompt = f"""
+        Username "{username}" has {len(found)} accounts on: {platform_names}.
+        Calculate a Social Presence Score. Return ONLY valid JSON like this:
+        {{
+          "total_score": 74,
+          "reach_score": 20,
+          "diversity_score": 18,
+          "influence_score": 19,
+          "consistency_score": 17,
+          "grade": "B",
+          "summary": "Strong presence across developer and social platforms with good diversity."
+        }}
+        Score rules:
+        - reach_score: 0-25 (based on number of platforms)
+        - diversity_score: 0-25 (based on variety of platform types)
+        - influence_score: 0-25 (based on high-value platforms like LinkedIn, GitHub)
+        - consistency_score: 0-25 (based on username consistency)
+        - total_score: sum of all 4
+        - grade: A(90+), B(75+), C(60+), D(45+), F(below 45)
+        Return only JSON, no markdown, no explanation.
+        """
+        chat = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": ai_prompt}],
+            max_tokens=400
+        )
+        text = chat.choices[0].message.content.strip()
+        text = text.replace('```json', '').replace('```', '').strip()
+        score_data = json.loads(text)
+        return {"username": username, "platform_count": len(found), "scores": score_data}
     except Exception as e:
         return {"error": str(e)}

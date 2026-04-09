@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, RadarChart, Radar, PolarGrid, PolarAngleAxis } from 'recharts';
 import jsPDF from 'jspdf';
 import './App.css';
 
@@ -470,6 +470,183 @@ function NetworkPage() {
   );
 }
 
+// ── NEW PAGES ──────────────────────────────────────────────
+
+function TimelinePage() {
+  const [username, setUsername] = useState(''); const [loading, setLoading] = useState(false); const [result, setResult] = useState(null);
+  const handle = async () => {
+    if (!username.trim()) return; setLoading(true); setResult(null);
+    try { const res = await axiosInstance.post(`${API}/timeline`, { username }); setResult(res.data); }
+    catch { setResult({ error: 'Something went wrong!' }); } setLoading(false);
+  };
+
+  const timelineByYear = result?.timeline ? result.timeline.reduce((acc, item) => {
+    const y = item.year;
+    if (!acc[y]) acc[y] = [];
+    acc[y].push(item);
+    return acc;
+  }, {}) : {};
+
+  const catColors = { Developer: '#60a5fa', Gaming: '#34d399', Social: '#f472b6', Music: '#fbbf24', Creative: '#f87171', Other: '#94a3b8' };
+
+  return (
+    <div className="page">
+      <div className="page-header"><h2>📅 Account Timeline</h2><p>See when accounts were likely created over the years</p></div>
+      <div className="card">
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <input type="text" placeholder="Enter username" value={username} onChange={e => setUsername(e.target.value)} onKeyDown={e => e.key === 'Enter' && handle()} className="input" />
+          <button onClick={handle} disabled={loading} className="btn">{loading ? '⏳ Building...' : '📅 Build Timeline'}</button>
+        </div>
+      </div>
+      {loading && <LoadingCard msg="📅 Building account timeline..." />}
+      {result && !loading && (
+        result.error ? <div className="card"><p style={{ color: '#ff6666' }}>❌ {result.error}</p></div> :
+        <div className="card">
+          <h2>📅 Timeline — {username} ({result.platform_count} platforms)</h2>
+          <div style={{ position: 'relative', padding: '20px 0' }}>
+            {Object.keys(timelineByYear).sort().map(year => (
+              <div key={year} style={{ display: 'flex', gap: '16px', marginBottom: '24px', alignItems: 'flex-start' }}>
+                <div style={{ minWidth: '50px', textAlign: 'right' }}>
+                  <span style={{ color: '#a78bfa', fontWeight: '700', fontSize: '0.9rem' }}>{year}</span>
+                </div>
+                <div style={{ width: '2px', background: '#a78bfa', minHeight: '100%', position: 'relative', marginTop: '4px' }}>
+                  <div style={{ width: '10px', height: '10px', background: '#a78bfa', borderRadius: '50%', position: 'absolute', top: '0', left: '-4px' }}></div>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', flex: 1 }}>
+                  {timelineByYear[year].map((item, i) => (
+                    <span key={i} style={{
+                      background: '#1a1a1a',
+                      border: `1px solid ${catColors[item.category] || '#555'}`,
+                      borderRadius: '20px', padding: '4px 12px',
+                      color: catColors[item.category] || '#aaa',
+                      fontSize: '0.78rem'
+                    }}>
+                      {item.platform}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DarkWebPage() {
+  const [username, setUsername] = useState(''); const [loading, setLoading] = useState(false); const [result, setResult] = useState(null);
+  const handle = async () => {
+    if (!username.trim()) return; setLoading(true); setResult(null);
+    try { const res = await axiosInstance.post(`${API}/darkweb`, { username }); setResult(res.data); }
+    catch { setResult({ error: 'Something went wrong!' }); } setLoading(false);
+  };
+  return (
+    <div className="page">
+      <div className="page-header"><h2>🌑 Dark Web Scanner</h2><p>Check if username appears on dark web forums and paste sites</p></div>
+      <div className="card" style={{ border: '1px solid #ff4444' }}>
+        <p style={{ color: '#ff6666', fontSize: '0.82rem', marginBottom: '12px' }}>⚠️ This feature uses AI simulation for educational purposes only.</p>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <input type="text" placeholder="Enter username to scan" value={username} onChange={e => setUsername(e.target.value)} onKeyDown={e => e.key === 'Enter' && handle()} className="input" />
+          <button onClick={handle} disabled={loading} className="btn" style={{ background: '#2a0a0a', border: '1px solid #ff4444', color: '#ff6666' }}>
+            {loading ? '⏳ Scanning...' : '🌑 Scan'}
+          </button>
+        </div>
+      </div>
+      {loading && <LoadingCard msg="🌑 Scanning dark web sources..." />}
+      {result && !loading && (
+        result.error ? <div className="card"><p style={{ color: '#ff6666' }}>❌ {result.error}</p></div> :
+        <div className="card" style={{ border: '1px solid #ff4444' }}>
+          <h2 style={{ color: '#ff6666' }}>🌑 Dark Web Report — {result.username}</h2>
+          <p style={{ color: '#888', fontSize: '0.82rem', marginBottom: '16px' }}>Based on {result.platform_count} platforms found</p>
+          <div style={{ background: '#0a0505', borderRadius: '10px', padding: '16px', fontFamily: 'monospace', fontSize: '0.85rem', lineHeight: '1.8', color: '#ff9999', whiteSpace: 'pre-wrap' }}>
+            {result.report}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ScorePage() {
+  const [username, setUsername] = useState(''); const [loading, setLoading] = useState(false); const [result, setResult] = useState(null);
+  const handle = async () => {
+    if (!username.trim()) return; setLoading(true); setResult(null);
+    try { const res = await axiosInstance.post(`${API}/score`, { username }); setResult(res.data); }
+    catch { setResult({ error: 'Something went wrong!' }); } setLoading(false);
+  };
+
+  const gradeColor = (g) => ({ A: '#34d399', B: '#60a5fa', C: '#fbbf24', D: '#f97316', F: '#ff4444' }[g] || '#aaa');
+
+  const radarData = result?.scores ? [
+    { subject: 'Reach', value: result.scores.reach_score, fullMark: 25 },
+    { subject: 'Diversity', value: result.scores.diversity_score, fullMark: 25 },
+    { subject: 'Influence', value: result.scores.influence_score, fullMark: 25 },
+    { subject: 'Consistency', value: result.scores.consistency_score, fullMark: 25 },
+  ] : [];
+
+  return (
+    <div className="page">
+      <div className="page-header"><h2>⭐ Social Score</h2><p>Rate your online presence out of 100</p></div>
+      <div className="card">
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <input type="text" placeholder="Enter username" value={username} onChange={e => setUsername(e.target.value)} onKeyDown={e => e.key === 'Enter' && handle()} className="input" />
+          <button onClick={handle} disabled={loading} className="btn">{loading ? '⏳ Scoring...' : '⭐ Get Score'}</button>
+        </div>
+      </div>
+      {loading && <LoadingCard msg="⭐ Calculating social score..." />}
+      {result && !loading && (
+        result.error ? <div className="card"><p style={{ color: '#ff6666' }}>❌ {result.error}</p></div> :
+        <>
+          <div className="card" style={{ textAlign: 'center' }}>
+            <h2>⭐ Social Score — {result.username}</h2>
+            <div style={{ margin: '20px 0' }}>
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: '140px', height: '140px', borderRadius: '50%',
+                border: `6px solid ${gradeColor(result.scores?.grade)}`,
+                flexDirection: 'column'
+              }}>
+                <span style={{ fontSize: '2.5rem', fontWeight: '800', color: gradeColor(result.scores?.grade) }}>
+                  {result.scores?.total_score}
+                </span>
+                <span style={{ fontSize: '0.8rem', color: '#888' }}>out of 100</span>
+              </div>
+              <div style={{ marginTop: '12px' }}>
+                <span style={{
+                  background: gradeColor(result.scores?.grade),
+                  color: '#000', fontWeight: '700', fontSize: '1.2rem',
+                  padding: '4px 20px', borderRadius: '20px'
+                }}>Grade: {result.scores?.grade}</span>
+              </div>
+            </div>
+            <p style={{ color: '#aaa', fontSize: '0.9rem' }}>{result.scores?.summary}</p>
+          </div>
+          <div className="stats-grid">
+            <div className="stat-card"><p className="stat-number" style={{ color: '#60a5fa' }}>{result.scores?.reach_score}/25</p><p className="stat-label">Reach</p></div>
+            <div className="stat-card"><p className="stat-number" style={{ color: '#34d399' }}>{result.scores?.diversity_score}/25</p><p className="stat-label">Diversity</p></div>
+            <div className="stat-card"><p className="stat-number" style={{ color: '#f472b6' }}>{result.scores?.influence_score}/25</p><p className="stat-label">Influence</p></div>
+            <div className="stat-card"><p className="stat-number" style={{ color: '#fbbf24' }}>{result.scores?.consistency_score}/25</p><p className="stat-label">Consistency</p></div>
+          </div>
+          {radarData.length > 0 && (
+            <div className="card">
+              <h2>📊 Score Breakdown</h2>
+              <ResponsiveContainer width="100%" height={300}>
+                <RadarChart data={radarData}>
+                  <PolarGrid stroke="#2e2e2e" />
+                  <PolarAngleAxis dataKey="subject" stroke="#888" />
+                  <Radar name="Score" dataKey="value" stroke="#a78bfa" fill="#a78bfa" fillOpacity={0.3} />
+                  <Tooltip />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── SIDEBAR + LAYOUT ──────────────────────────────────────────────
 
 const NAV_LINKS = [
@@ -483,6 +660,9 @@ const NAV_LINKS = [
   { to: '/password', label: '🔏 Password', group: 'Advanced' },
   { to: '/avatars', label: '📸 Avatars', group: 'Advanced' },
   { to: '/network', label: '🕸️ Network', group: 'Advanced' },
+  { to: '/timeline', label: '📅 Timeline', group: 'New' },
+  { to: '/darkweb', label: '🌑 Dark Web', group: 'New' },
+  { to: '/score', label: '⭐ Social Score', group: 'New' },
 ];
 
 export default function App() {
@@ -508,6 +688,13 @@ export default function App() {
                 {link.label}
               </NavLink>
             ))}
+            <div className="sidebar-divider" />
+            <span className="sidebar-label" style={{ color: '#34d399' }}>✨ New</span>
+            {NAV_LINKS.filter(l => l.group === 'New').map(link => (
+              <NavLink key={link.to} to={link.to} className={({ isActive }) => `sidebar-btn ${isActive ? 'active' : ''}`}>
+                {link.label}
+              </NavLink>
+            ))}
           </nav>
           <main className="main">
             <Routes>
@@ -521,6 +708,9 @@ export default function App() {
               <Route path="/password" element={<PasswordPage />} />
               <Route path="/avatars" element={<AvatarsPage />} />
               <Route path="/network" element={<NetworkPage />} />
+              <Route path="/timeline" element={<TimelinePage />} />
+              <Route path="/darkweb" element={<DarkWebPage />} />
+              <Route path="/score" element={<ScorePage />} />
             </Routes>
           </main>
         </div>
