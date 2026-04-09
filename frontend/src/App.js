@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, RadarChart, Radar, PolarGrid, PolarAngleAxis } from 'recharts';
 import jsPDF from 'jspdf';
 import './App.css';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { auth } from './firebase';
+import LoginPage from './LoginPage';
 
 const API = 'https://socialspy-production.up.railway.app';
 const axiosInstance = axios.create({ timeout: 120000 });
@@ -666,12 +669,41 @@ const NAV_LINKS = [
 ];
 
 export default function App() {
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setAuthLoading(false);
+    });
+  }, []);
+
+  if (authLoading) return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0a0a0a' }}>
+      <p style={{ color: '#a78bfa', fontSize: '1.2rem' }}>⏳ Loading...</p>
+    </div>
+  );
+
+  if (!user) return <LoginPage onLogin={setUser} />;
+
   return (
     <BrowserRouter>
       <div className="app">
-        <header className="header">
-          <h1>🕵️ SocialSpy</h1>
-          <p>AI-Powered Digital Footprint Analyzer</p>
+        <header className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px' }}>
+          <div>
+            <h1>🕵️ SocialSpy</h1>
+            <p>AI-Powered Digital Footprint Analyzer</p>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <p style={{ color: '#888', fontSize: '0.8rem', marginBottom: '6px' }}>👤 {user.email}</p>
+            <button
+              onClick={() => signOut(auth)}
+              className="btn"
+              style={{ background: '#1a1a1a', border: '1px solid #ff4444', color: '#ff6666', fontSize: '0.8rem', padding: '6px 14px' }}>
+              🚪 Logout
+            </button>
+          </div>
         </header>
         <div className="app-body">
           <nav className="sidebar">
