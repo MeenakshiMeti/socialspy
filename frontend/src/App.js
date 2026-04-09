@@ -5,8 +5,9 @@ import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Ba
 import jsPDF from 'jspdf';
 import './App.css';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { auth } from './firebase';
+import { auth, db } from './firebase';
 import LoginPage from './LoginPage';
+import { collection, addDoc, query, where, orderBy, getDocs, serverTimestamp } from 'firebase/firestore';
 
 const API = 'https://socialspy-production.up.railway.app';
 const axiosInstance = axios.create({ timeout: 120000 });
@@ -20,6 +21,24 @@ const CATEGORIES = {
   Other: []
 };
 const COLORS = ['#a78bfa', '#60a5fa', '#34d399', '#f472b6', '#fbbf24', '#94a3b8'];
+
+// ── FIRESTORE HELPER ──────────────────────────────────────────────
+
+const saveToHistory = async (userId, type, query, summary) => {
+  try {
+    await addDoc(collection(db, 'history'), {
+      userId,
+      type,
+      query,
+      summary,
+      timestamp: serverTimestamp(),
+    });
+  } catch (err) {
+    console.error('Failed to save history:', err);
+  }
+};
+
+// ── SHARED COMPONENTS ──────────────────────────────────────────────
 
 const LoadingCard = ({ msg }) => (
   <div className="card" style={{ textAlign: 'center' }}>
@@ -46,7 +65,7 @@ const getCategoryData = (accounts = []) => {
 
 // ── PAGES ──────────────────────────────────────────────
 
-function SearchPage() {
+function SearchPage({ userId }) {
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -58,6 +77,7 @@ function SearchPage() {
     try {
       const res = await axiosInstance.post(`${API}/search`, { username });
       setResult(res.data);
+      await saveToHistory(userId, 'search', username, `Found ${res.data.found_count} accounts`);
     } catch { setError('Something went wrong. Is the backend running?'); }
     setLoading(false);
   };
@@ -142,7 +162,7 @@ function SearchPage() {
   );
 }
 
-function BreachPage() {
+function BreachPage({ userId }) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -151,8 +171,11 @@ function BreachPage() {
   const handle = async () => {
     if (!email.trim()) return;
     setLoading(true); setResult(null);
-    try { const res = await axiosInstance.post(`${API}/breach`, { email }); setResult(res.data); }
-    catch { setResult({ error: 'Something went wrong!' }); }
+    try {
+      const res = await axiosInstance.post(`${API}/breach`, { email });
+      setResult(res.data);
+      await saveToHistory(userId, 'breach', email, res.data.breached ? `Found in ${res.data.count} breach(es)` : 'No breaches found');
+    } catch { setResult({ error: 'Something went wrong!' }); }
     setLoading(false);
   };
 
@@ -194,14 +217,17 @@ function BreachPage() {
   );
 }
 
-function ComparePage() {
+function ComparePage({ userId }) {
   const [u1, setU1] = useState(''); const [u2, setU2] = useState('');
   const [loading, setLoading] = useState(false); const [result, setResult] = useState(null);
   const handle = async () => {
     if (!u1.trim() || !u2.trim()) return;
     setLoading(true); setResult(null);
-    try { const res = await axiosInstance.post(`${API}/compare`, { username1: u1, username2: u2 }); setResult(res.data); }
-    catch { setResult({ error: 'Something went wrong!' }); }
+    try {
+      const res = await axiosInstance.post(`${API}/compare`, { username1: u1, username2: u2 });
+      setResult(res.data);
+      await saveToHistory(userId, 'compare', `${u1} vs ${u2}`, `${res.data.count1} vs ${res.data.count2} accounts`);
+    } catch { setResult({ error: 'Something went wrong!' }); }
     setLoading(false);
   };
   return (
@@ -238,12 +264,15 @@ function ComparePage() {
   );
 }
 
-function PersonalityPage() {
+function PersonalityPage({ userId }) {
   const [username, setUsername] = useState(''); const [loading, setLoading] = useState(false); const [result, setResult] = useState(null);
   const handle = async () => {
     if (!username.trim()) return; setLoading(true); setResult(null);
-    try { const res = await axiosInstance.post(`${API}/personality`, { username }); setResult(res.data); }
-    catch { setResult({ error: 'Something went wrong!' }); } setLoading(false);
+    try {
+      const res = await axiosInstance.post(`${API}/personality`, { username });
+      setResult(res.data);
+      await saveToHistory(userId, 'personality', username, `Analyzed across ${res.data.platform_count} platforms`);
+    } catch { setResult({ error: 'Something went wrong!' }); } setLoading(false);
   };
   return (
     <div className="page">
@@ -260,12 +289,15 @@ function PersonalityPage() {
   );
 }
 
-function LocationPage() {
+function LocationPage({ userId }) {
   const [username, setUsername] = useState(''); const [loading, setLoading] = useState(false); const [result, setResult] = useState(null);
   const handle = async () => {
     if (!username.trim()) return; setLoading(true); setResult(null);
-    try { const res = await axiosInstance.post(`${API}/location`, { username }); setResult(res.data); }
-    catch { setResult({ error: 'Something went wrong!' }); } setLoading(false);
+    try {
+      const res = await axiosInstance.post(`${API}/location`, { username });
+      setResult(res.data);
+      await saveToHistory(userId, 'location', username, `Location analyzed across ${res.data.platform_count} platforms`);
+    } catch { setResult({ error: 'Something went wrong!' }); } setLoading(false);
   };
   return (
     <div className="page">
@@ -282,12 +314,15 @@ function LocationPage() {
   );
 }
 
-function MonitorPage() {
+function MonitorPage({ userId }) {
   const [username, setUsername] = useState(''); const [loading, setLoading] = useState(false); const [result, setResult] = useState(null);
   const handle = async () => {
     if (!username.trim()) return; setLoading(true); setResult(null);
-    try { const res = await axiosInstance.post(`${API}/monitor`, { username }); setResult(res.data); }
-    catch { setResult({ error: 'Something went wrong!' }); } setLoading(false);
+    try {
+      const res = await axiosInstance.post(`${API}/monitor`, { username });
+      setResult(res.data);
+      await saveToHistory(userId, 'monitor', username, `${res.data.current_count} accounts monitored`);
+    } catch { setResult({ error: 'Something went wrong!' }); } setLoading(false);
   };
   return (
     <div className="page">
@@ -334,12 +369,15 @@ function MonitorPage() {
   );
 }
 
-function NewsPage() {
+function NewsPage({ userId }) {
   const [username, setUsername] = useState(''); const [loading, setLoading] = useState(false); const [result, setResult] = useState(null);
   const handle = async () => {
     if (!username.trim()) return; setLoading(true); setResult(null);
-    try { const res = await axiosInstance.post(`${API}/news`, { username }); setResult(res.data); }
-    catch { setResult({ error: 'Something went wrong!' }); } setLoading(false);
+    try {
+      const res = await axiosInstance.post(`${API}/news`, { username });
+      setResult(res.data);
+      await saveToHistory(userId, 'news', username, 'News search completed');
+    } catch { setResult({ error: 'Something went wrong!' }); } setLoading(false);
   };
   return (
     <div className="page">
@@ -356,12 +394,15 @@ function NewsPage() {
   );
 }
 
-function PasswordPage() {
+function PasswordPage({ userId }) {
   const [email, setEmail] = useState(''); const [loading, setLoading] = useState(false); const [result, setResult] = useState(null);
   const handle = async () => {
     if (!email.trim()) return; setLoading(true); setResult(null);
-    try { const res = await axiosInstance.post(`${API}/password-advice`, { email, breaches: [] }); setResult(res.data); }
-    catch { setResult({ error: 'Something went wrong!' }); } setLoading(false);
+    try {
+      const res = await axiosInstance.post(`${API}/password-advice`, { email, breaches: [] });
+      setResult(res.data);
+      await saveToHistory(userId, 'password', email, 'Password security advice generated');
+    } catch { setResult({ error: 'Something went wrong!' }); } setLoading(false);
   };
   return (
     <div className="page">
@@ -377,12 +418,15 @@ function PasswordPage() {
   );
 }
 
-function AvatarsPage() {
+function AvatarsPage({ userId }) {
   const [username, setUsername] = useState(''); const [loading, setLoading] = useState(false); const [result, setResult] = useState(null);
   const handle = async () => {
     if (!username.trim()) return; setLoading(true); setResult(null);
-    try { const res = await axiosInstance.post(`${API}/avatars`, { username }); setResult(res.data); }
-    catch { setResult({ error: 'Something went wrong!' }); } setLoading(false);
+    try {
+      const res = await axiosInstance.post(`${API}/avatars`, { username });
+      setResult(res.data);
+      await saveToHistory(userId, 'avatars', username, `Found on ${res.data.platform_count} platforms`);
+    } catch { setResult({ error: 'Something went wrong!' }); } setLoading(false);
   };
   return (
     <div className="page">
@@ -425,12 +469,15 @@ function AvatarsPage() {
   );
 }
 
-function NetworkPage() {
+function NetworkPage({ userId }) {
   const [username, setUsername] = useState(''); const [loading, setLoading] = useState(false); const [result, setResult] = useState(null);
   const handle = async () => {
     if (!username.trim()) return; setLoading(true); setResult(null);
-    try { const res = await axiosInstance.post(`${API}/search`, { username }); setResult(res.data); }
-    catch { setResult({ error: 'Something went wrong!' }); } setLoading(false);
+    try {
+      const res = await axiosInstance.post(`${API}/search`, { username });
+      setResult(res.data);
+      await saveToHistory(userId, 'network', username, `Network graph with ${res.data.found_count} nodes`);
+    } catch { setResult({ error: 'Something went wrong!' }); } setLoading(false);
   };
   return (
     <div className="page">
@@ -475,12 +522,15 @@ function NetworkPage() {
 
 // ── NEW PAGES ──────────────────────────────────────────────
 
-function TimelinePage() {
+function TimelinePage({ userId }) {
   const [username, setUsername] = useState(''); const [loading, setLoading] = useState(false); const [result, setResult] = useState(null);
   const handle = async () => {
     if (!username.trim()) return; setLoading(true); setResult(null);
-    try { const res = await axiosInstance.post(`${API}/timeline`, { username }); setResult(res.data); }
-    catch { setResult({ error: 'Something went wrong!' }); } setLoading(false);
+    try {
+      const res = await axiosInstance.post(`${API}/timeline`, { username });
+      setResult(res.data);
+      await saveToHistory(userId, 'timeline', username, `Timeline built for ${res.data.platform_count} platforms`);
+    } catch { setResult({ error: 'Something went wrong!' }); } setLoading(false);
   };
 
   const timelineByYear = result?.timeline ? result.timeline.reduce((acc, item) => {
@@ -537,12 +587,15 @@ function TimelinePage() {
   );
 }
 
-function DarkWebPage() {
+function DarkWebPage({ userId }) {
   const [username, setUsername] = useState(''); const [loading, setLoading] = useState(false); const [result, setResult] = useState(null);
   const handle = async () => {
     if (!username.trim()) return; setLoading(true); setResult(null);
-    try { const res = await axiosInstance.post(`${API}/darkweb`, { username }); setResult(res.data); }
-    catch { setResult({ error: 'Something went wrong!' }); } setLoading(false);
+    try {
+      const res = await axiosInstance.post(`${API}/darkweb`, { username });
+      setResult(res.data);
+      await saveToHistory(userId, 'darkweb', username, 'Dark web scan completed');
+    } catch { setResult({ error: 'Something went wrong!' }); } setLoading(false);
   };
   return (
     <div className="page">
@@ -571,12 +624,15 @@ function DarkWebPage() {
   );
 }
 
-function ScorePage() {
+function ScorePage({ userId }) {
   const [username, setUsername] = useState(''); const [loading, setLoading] = useState(false); const [result, setResult] = useState(null);
   const handle = async () => {
     if (!username.trim()) return; setLoading(true); setResult(null);
-    try { const res = await axiosInstance.post(`${API}/score`, { username }); setResult(res.data); }
-    catch { setResult({ error: 'Something went wrong!' }); } setLoading(false);
+    try {
+      const res = await axiosInstance.post(`${API}/score`, { username });
+      setResult(res.data);
+      await saveToHistory(userId, 'score', username, `Score: ${res.data.scores?.total_score}/100 (${res.data.scores?.grade})`);
+    } catch { setResult({ error: 'Something went wrong!' }); } setLoading(false);
   };
 
   const gradeColor = (g) => ({ A: '#34d399', B: '#60a5fa', C: '#fbbf24', D: '#f97316', F: '#ff4444' }[g] || '#aaa');
@@ -650,6 +706,107 @@ function ScorePage() {
   );
 }
 
+// ── HISTORY PAGE ──────────────────────────────────────────────
+
+const TYPE_ICONS = {
+  search: '🔍', breach: '🔓', compare: '⚖️', personality: '🧠',
+  location: '🗺️', monitor: '🔔', news: '📰', password: '🔏',
+  avatars: '📸', network: '🕸️', timeline: '📅', darkweb: '🌑', score: '⭐'
+};
+
+function HistoryPage({ userId }) {
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const q = query(
+          collection(db, 'history'),
+          where('userId', '==', userId),
+          orderBy('timestamp', 'desc')
+        );
+        const snapshot = await getDocs(q);
+        setHistory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      } catch (err) {
+        console.error('Failed to fetch history:', err);
+      }
+      setLoading(false);
+    };
+    fetchHistory();
+  }, [userId]);
+
+  const filtered = filter === 'all' ? history : history.filter(h => h.type === filter);
+  const types = ['all', ...Object.keys(TYPE_ICONS)];
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <h2>📜 Search History</h2>
+        <p>All your past searches saved per account</p>
+      </div>
+
+      {/* Filter tabs */}
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+        {types.map(t => (
+          <button key={t} onClick={() => setFilter(t)}
+            style={{
+              background: filter === t ? '#a78bfa' : '#1a1a1a',
+              border: `1px solid ${filter === t ? '#a78bfa' : '#2e2e2e'}`,
+              color: filter === t ? '#000' : '#aaa',
+              borderRadius: '20px', padding: '4px 14px',
+              fontSize: '0.78rem', cursor: 'pointer', fontWeight: filter === t ? '700' : '400'
+            }}>
+            {t === 'all' ? '🗂️ All' : `${TYPE_ICONS[t]} ${t}`}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="card" style={{ textAlign: 'center' }}>
+          <div className="spinner"></div>
+          <p style={{ color: '#a78bfa', marginTop: '16px' }}>Loading history...</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="card" style={{ textAlign: 'center' }}>
+          <p style={{ fontSize: '2rem', marginBottom: '12px' }}>🗂️</p>
+          <p style={{ color: '#888' }}>No history yet. Start searching!</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {filtered.map((item) => (
+            <div key={item.id} style={{
+              background: '#111', border: '1px solid #2a2a2a',
+              borderRadius: '12px', padding: '14px 18px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              flexWrap: 'wrap', gap: '8px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '1.4rem' }}>{TYPE_ICONS[item.type] || '🔎'}</span>
+                <div>
+                  <p style={{ color: '#e0e0e0', fontWeight: '600', fontSize: '0.9rem' }}>{item.query}</p>
+                  <p style={{ color: '#888', fontSize: '0.78rem' }}>{item.summary}</p>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{
+                  background: '#1e1e1e', border: '1px solid #3e3e3e',
+                  borderRadius: '12px', padding: '2px 10px',
+                  color: '#a78bfa', fontSize: '0.72rem'
+                }}>{item.type}</span>
+                <p style={{ color: '#555', fontSize: '0.72rem', marginTop: '4px' }}>
+                  {item.timestamp?.toDate ? item.timestamp.toDate().toLocaleString() : 'Just now'}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── NAV LINKS ──────────────────────────────────────────────
 
 const NAV_LINKS = [
@@ -666,6 +823,7 @@ const NAV_LINKS = [
   { to: '/timeline', label: '📅 Timeline', group: 'New' },
   { to: '/darkweb', label: '🌑 Dark Web', group: 'New' },
   { to: '/score', label: '⭐ Social Score', group: 'New' },
+  { to: '/history', label: '📜 History', group: 'New' },
 ];
 
 // ── APP ──────────────────────────────────────────────
@@ -708,12 +866,10 @@ export default function App() {
         </header>
 
         <div className="app-body">
-          {/* Dark overlay for mobile sidebar */}
           {sidebarOpen && (
             <div className="sidebar-overlay open" onClick={() => setSidebarOpen(false)} />
           )}
 
-          {/* Sidebar */}
           <nav className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
             <span className="sidebar-label">Core</span>
             {NAV_LINKS.filter(l => l.group === 'Core').map(link => (
@@ -743,26 +899,25 @@ export default function App() {
             ))}
           </nav>
 
-          {/* Main content */}
           <main className="main">
             <Routes>
-              <Route path="/" element={<SearchPage />} />
-              <Route path="/breach" element={<BreachPage />} />
-              <Route path="/compare" element={<ComparePage />} />
-              <Route path="/personality" element={<PersonalityPage />} />
-              <Route path="/location" element={<LocationPage />} />
-              <Route path="/monitor" element={<MonitorPage />} />
-              <Route path="/news" element={<NewsPage />} />
-              <Route path="/password" element={<PasswordPage />} />
-              <Route path="/avatars" element={<AvatarsPage />} />
-              <Route path="/network" element={<NetworkPage />} />
-              <Route path="/timeline" element={<TimelinePage />} />
-              <Route path="/darkweb" element={<DarkWebPage />} />
-              <Route path="/score" element={<ScorePage />} />
+              <Route path="/" element={<SearchPage userId={user.uid} />} />
+              <Route path="/breach" element={<BreachPage userId={user.uid} />} />
+              <Route path="/compare" element={<ComparePage userId={user.uid} />} />
+              <Route path="/personality" element={<PersonalityPage userId={user.uid} />} />
+              <Route path="/location" element={<LocationPage userId={user.uid} />} />
+              <Route path="/monitor" element={<MonitorPage userId={user.uid} />} />
+              <Route path="/news" element={<NewsPage userId={user.uid} />} />
+              <Route path="/password" element={<PasswordPage userId={user.uid} />} />
+              <Route path="/avatars" element={<AvatarsPage userId={user.uid} />} />
+              <Route path="/network" element={<NetworkPage userId={user.uid} />} />
+              <Route path="/timeline" element={<TimelinePage userId={user.uid} />} />
+              <Route path="/darkweb" element={<DarkWebPage userId={user.uid} />} />
+              <Route path="/score" element={<ScorePage userId={user.uid} />} />
+              <Route path="/history" element={<HistoryPage userId={user.uid} />} />
             </Routes>
           </main>
 
-          {/* Floating hamburger — mobile only */}
           <button className="hamburger" onClick={() => setSidebarOpen(!sidebarOpen)}>
             {sidebarOpen ? '✕' : '☰'}
           </button>
