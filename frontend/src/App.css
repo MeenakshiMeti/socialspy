@@ -8,6 +8,7 @@ body {
 
 .app { min-height: 100vh; display: flex; flex-direction: column; }
 
+/* ── HEADER ── */
 .header {
   text-align: center;
   padding: 24px 20px;
@@ -17,6 +18,7 @@ body {
 .header h1 { font-size: 2rem; color: #a78bfa; margin-bottom: 4px; }
 .header p { color: #888; font-size: 0.9rem; }
 
+/* ── APP BODY ── */
 .app-body {
   display: flex;
   flex-direction: row;
@@ -25,7 +27,7 @@ body {
   width: 100%;
 }
 
-/* SIDEBAR */
+/* ── SIDEBAR ── */
 .sidebar {
   width: 220px;
   min-width: 220px;
@@ -77,16 +79,16 @@ body {
   margin-top: 4px;
 }
 
-/* MAIN */
-.main { flex: 1; padding: 30px 24px; overflow-y: auto; }
+/* ── MAIN ── */
+.main { flex: 1; padding: 30px 24px; overflow-y: auto; min-width: 0; }
 
-/* PAGE */
+/* ── PAGE ── */
 .page { max-width: 900px; }
 .page-header { margin-bottom: 24px; }
 .page-header h2 { font-size: 1.6rem; color: #e0e0e0; margin-bottom: 6px; }
 .page-header p { color: #888; font-size: 0.9rem; }
 
-/* CARD */
+/* ── CARD ── */
 .card {
   background: #151515;
   border: 1px solid #222;
@@ -96,6 +98,7 @@ body {
 }
 .card h2 { color: #e0e0e0; margin-bottom: 16px; font-size: 1.2rem; }
 
+/* ── INPUT + BUTTON ── */
 .input {
   flex: 1;
   padding: 12px 16px;
@@ -106,6 +109,7 @@ body {
   font-size: 1rem;
   outline: none;
   width: 100%;
+  min-width: 0;
 }
 .input:focus { border-color: #a78bfa; }
 
@@ -119,12 +123,14 @@ body {
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn:hover:not(:disabled) { background: #9061f9; }
 
 .error { border-color: #ff4444; color: #ff6666; }
 
+/* ── STATS ── */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -141,6 +147,7 @@ body {
 .stat-number { font-size: 2rem; font-weight: 700; color: #a78bfa; margin-bottom: 8px; }
 .stat-label { color: #888; font-size: 0.85rem; }
 
+/* ── ANALYSIS ── */
 .analysis {
   background: #1a1a1a;
   border-radius: 10px;
@@ -149,11 +156,13 @@ body {
   font-size: 0.92rem;
   line-height: 1.7;
   white-space: pre-wrap;
+  word-break: break-word;
 }
 
+/* ── ACCOUNTS GRID ── */
 .accounts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 10px;
   margin-top: 16px;
 }
@@ -172,6 +181,7 @@ body {
 }
 .account-card:hover { border-color: #a78bfa; background: #1a1228; }
 
+/* ── SPINNER ── */
 .spinner {
   width: 40px; height: 40px;
   border: 3px solid #2e2e2e;
@@ -182,15 +192,131 @@ body {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── HAMBURGER MENU (mobile only) ── */
+.hamburger {
+  display: none;
+  background: #1e1e1e;
+  border: 1px solid #2e2e2e;
+  border-radius: 8px;
+  color: #a78bfa;
+  font-size: 1.4rem;
+  padding: 6px 12px;
+  cursor: pointer;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  box-shadow: 0 4px 20px rgba(167,139,250,0.3);
+}
+
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 998;
+}
+
+/* ────────────────────────────────────────
+   TABLET  (768px – 1024px)
+──────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .sidebar { width: 180px; min-width: 180px; }
+  .sidebar-btn { font-size: 0.82rem; padding: 10px 12px; }
+  .main { padding: 24px 16px; }
+  .card { padding: 20px; }
+  .stats-grid { gap: 12px; }
+  .stat-number { font-size: 1.6rem; }
+}
+
+/* ────────────────────────────────────────
+   MOBILE  (≤ 768px)
+──────────────────────────────────────── */
 @media (max-width: 768px) {
-  .app-body { flex-direction: column; }
+
+  /* Header */
+  .header { padding: 16px; }
+  .header h1 { font-size: 1.4rem; }
+  .header p { font-size: 0.8rem; }
+
+  /* Header login bar (user email + logout) */
+  .header > div:last-child p { font-size: 0.7rem; }
+  .header > div:last-child .btn { font-size: 0.72rem; padding: 5px 10px; }
+
+  /* Body layout: stack vertically, sidebar hidden by default */
+  .app-body { flex-direction: column; position: relative; }
+
+  /* Sidebar becomes a slide-in drawer */
   .sidebar {
-    width: 100%; min-width: unset; height: auto;
-    flex-direction: row; overflow-x: auto;
-    padding: 10px; position: static;
+    position: fixed;
+    top: 0; left: -260px;
+    width: 240px;
+    min-width: 240px;
+    height: 100vh;
+    z-index: 999;
+    transition: left 0.3s ease;
+    padding: 60px 12px 20px;
+    overflow-y: auto;
   }
-  .sidebar-btn { padding: 8px 12px; font-size: 0.78rem; }
-  .sidebar-label { display: none; }
-  .stats-grid { grid-template-columns: repeat(2, 1fr); }
-  .header h1 { font-size: 1.6rem; }
+  .sidebar.open { left: 0; }
+
+  /* Overlay when sidebar is open */
+  .sidebar-overlay { display: block; }
+  .sidebar-overlay.open { display: block; }
+
+  /* Show hamburger button */
+  .hamburger { display: block; }
+
+  /* Sidebar labels visible */
+  .sidebar-label { display: block; }
+
+  /* Main content full width */
+  .main { padding: 16px 12px; padding-bottom: 80px; }
+
+  /* Page header */
+  .page-header h2 { font-size: 1.3rem; }
+  .page-header p { font-size: 0.82rem; }
+
+  /* Card */
+  .card { padding: 16px; border-radius: 12px; }
+  .card h2 { font-size: 1.05rem; }
+
+  /* Search input + button: stack vertically */
+  .card > div[style*="display: flex"] {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+  .btn { width: 100%; }
+
+  /* Stats grid: 2 columns on mobile, then 1 if very small */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .stat-card { padding: 16px 10px; }
+  .stat-number { font-size: 1.4rem; }
+  .stat-label { font-size: 0.78rem; }
+
+  /* Accounts grid */
+  .accounts-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 8px;
+  }
+
+  /* Analysis text */
+  .analysis { font-size: 0.85rem; padding: 12px; }
+
+  /* Charts: reduce height */
+  .recharts-responsive-container { height: 220px !important; }
+}
+
+/* ────────────────────────────────────────
+   VERY SMALL PHONES  (≤ 400px)
+──────────────────────────────────────── */
+@media (max-width: 400px) {
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .stat-number { font-size: 1.2rem; }
+  .accounts-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+  .header h1 { font-size: 1.2rem; }
+  .card { padding: 12px; }
 }

@@ -671,6 +671,7 @@ const NAV_LINKS = [
 export default function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     onAuthStateChanged(auth, (u) => {
@@ -678,6 +679,90 @@ export default function App() {
       setAuthLoading(false);
     });
   }, []);
+
+  if (authLoading) return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0a0a0a' }}>
+      <p style={{ color: '#a78bfa', fontSize: '1.2rem' }}>⏳ Loading...</p>
+    </div>
+  );
+
+  if (!user) return <LoginPage onLogin={setUser} />;
+
+  return (
+    <BrowserRouter>
+      <div className="app">
+        <header className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px' }}>
+          <div>
+            <h1>🕵️ SocialSpy</h1>
+            <p>AI-Powered Digital Footprint Analyzer</p>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <p style={{ color: '#888', fontSize: '0.8rem', marginBottom: '6px' }}>👤 {user.email}</p>
+            <button onClick={() => signOut(auth)} className="btn"
+              style={{ background: '#1a1a1a', border: '1px solid #ff4444', color: '#ff6666', fontSize: '0.8rem', padding: '6px 14px', width: 'auto' }}>
+              🚪 Logout
+            </button>
+          </div>
+        </header>
+        <div className="app-body">
+          {/* Overlay */}
+          <div className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`} onClick={() => setSidebarOpen(false)} />
+
+          {/* Sidebar */}
+          <nav className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+            <span className="sidebar-label">Core</span>
+            {NAV_LINKS.filter(l => l.group === 'Core').map(link => (
+              <NavLink key={link.to} to={link.to} end={link.to === '/'} onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) => `sidebar-btn ${isActive ? 'active' : ''}`}>
+                {link.label}
+              </NavLink>
+            ))}
+            <div className="sidebar-divider" />
+            <span className="sidebar-label">Advanced</span>
+            {NAV_LINKS.filter(l => l.group === 'Advanced').map(link => (
+              <NavLink key={link.to} to={link.to} onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) => `sidebar-btn ${isActive ? 'active' : ''}`}>
+                {link.label}
+              </NavLink>
+            ))}
+            <div className="sidebar-divider" />
+            <span className="sidebar-label" style={{ color: '#34d399' }}>✨ New</span>
+            {NAV_LINKS.filter(l => l.group === 'New').map(link => (
+              <NavLink key={link.to} to={link.to} onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) => `sidebar-btn ${isActive ? 'active' : ''}`}>
+                {link.label}
+              </NavLink>
+            ))}
+          </nav>
+
+          {/* Main content */}
+          <main className="main">
+            <Routes>
+              <Route path="/" element={<SearchPage />} />
+              <Route path="/breach" element={<BreachPage />} />
+              <Route path="/compare" element={<ComparePage />} />
+              <Route path="/personality" element={<PersonalityPage />} />
+              <Route path="/location" element={<LocationPage />} />
+              <Route path="/monitor" element={<MonitorPage />} />
+              <Route path="/news" element={<NewsPage />} />
+              <Route path="/password" element={<PasswordPage />} />
+              <Route path="/avatars" element={<AvatarsPage />} />
+              <Route path="/network" element={<NetworkPage />} />
+              <Route path="/timeline" element={<TimelinePage />} />
+              <Route path="/darkweb" element={<DarkWebPage />} />
+              <Route path="/score" element={<ScorePage />} />
+            </Routes>
+          </main>
+
+          {/* Hamburger button (mobile only) */}
+          <button className="hamburger" onClick={() => setSidebarOpen(!sidebarOpen)}>
+            {sidebarOpen ? '✕' : '☰'}
+          </button>
+        </div>
+      </div>
+    </BrowserRouter>
+  );
+}
 
   if (authLoading) return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0a0a0a' }}>
@@ -749,4 +834,3 @@ export default function App() {
       </div>
     </BrowserRouter>
   );
-}
