@@ -100,7 +100,7 @@ function SearchPage() {
       {result && !loading && (
         <>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
-            <button onClick={exportPDF} className="btn" style={{ background: '#1e1e1e', border: '1px solid #a78bfa', color: '#a78bfa' }}>📤 Export PDF</button>
+            <button onClick={exportPDF} className="btn" style={{ background: '#1e1e1e', border: '1px solid #a78bfa', color: '#a78bfa', width: 'auto' }}>📤 Export PDF</button>
           </div>
           <div className="stats-grid">
             <div className="stat-card"><p className="stat-number">{result.found_count}</p><p className="stat-label">Accounts Found</p></div>
@@ -446,7 +446,7 @@ function NetworkPage() {
         <div className="card">
           {result.error ? <p style={{ color: '#ff6666' }}>❌ {result.error}</p> : <>
             <h2>🕸️ Network — {username} ({result.found_count} platforms)</h2>
-            <div style={{ background: '#0a0a0a', borderRadius: '10px', padding: '20px', minHeight: '400px' }}>
+            <div style={{ background: '#0a0a0a', borderRadius: '10px', padding: '20px', minHeight: '300px' }}>
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
                 <div style={{ display: 'inline-block', background: '#a78bfa', borderRadius: '50%', width: '70px', height: '70px', lineHeight: '70px', fontWeight: '700', color: '#fff', fontSize: '0.75rem' }}>
                   {username.slice(0, 8)}
@@ -562,7 +562,7 @@ function DarkWebPage() {
         <div className="card" style={{ border: '1px solid #ff4444' }}>
           <h2 style={{ color: '#ff6666' }}>🌑 Dark Web Report — {result.username}</h2>
           <p style={{ color: '#888', fontSize: '0.82rem', marginBottom: '16px' }}>Based on {result.platform_count} platforms found</p>
-          <div style={{ background: '#0a0505', borderRadius: '10px', padding: '16px', fontFamily: 'monospace', fontSize: '0.85rem', lineHeight: '1.8', color: '#ff9999', whiteSpace: 'pre-wrap' }}>
+          <div style={{ background: '#0a0505', borderRadius: '10px', padding: '16px', fontFamily: 'monospace', fontSize: '0.85rem', lineHeight: '1.8', color: '#ff9999', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
             {result.report}
           </div>
         </div>
@@ -650,7 +650,7 @@ function ScorePage() {
   );
 }
 
-// ── SIDEBAR + LAYOUT ──────────────────────────────────────────────
+// ── NAV LINKS ──────────────────────────────────────────────
 
 const NAV_LINKS = [
   { to: '/', label: '🔍 Search', group: 'Core' },
@@ -667,6 +667,8 @@ const NAV_LINKS = [
   { to: '/darkweb', label: '🌑 Dark Web', group: 'New' },
   { to: '/score', label: '⭐ Social Score', group: 'New' },
 ];
+
+// ── APP ──────────────────────────────────────────────
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -704,15 +706,19 @@ export default function App() {
             </button>
           </div>
         </header>
+
         <div className="app-body">
-          {/* Overlay */}
-          <div className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`} onClick={() => setSidebarOpen(false)} />
+          {/* Dark overlay for mobile sidebar */}
+          {sidebarOpen && (
+            <div className="sidebar-overlay open" onClick={() => setSidebarOpen(false)} />
+          )}
 
           {/* Sidebar */}
           <nav className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
             <span className="sidebar-label">Core</span>
             {NAV_LINKS.filter(l => l.group === 'Core').map(link => (
-              <NavLink key={link.to} to={link.to} end={link.to === '/'} onClick={() => setSidebarOpen(false)}
+              <NavLink key={link.to} to={link.to} end={link.to === '/'}
+                onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) => `sidebar-btn ${isActive ? 'active' : ''}`}>
                 {link.label}
               </NavLink>
@@ -720,7 +726,8 @@ export default function App() {
             <div className="sidebar-divider" />
             <span className="sidebar-label">Advanced</span>
             {NAV_LINKS.filter(l => l.group === 'Advanced').map(link => (
-              <NavLink key={link.to} to={link.to} onClick={() => setSidebarOpen(false)}
+              <NavLink key={link.to} to={link.to}
+                onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) => `sidebar-btn ${isActive ? 'active' : ''}`}>
                 {link.label}
               </NavLink>
@@ -728,7 +735,8 @@ export default function App() {
             <div className="sidebar-divider" />
             <span className="sidebar-label" style={{ color: '#34d399' }}>✨ New</span>
             {NAV_LINKS.filter(l => l.group === 'New').map(link => (
-              <NavLink key={link.to} to={link.to} onClick={() => setSidebarOpen(false)}
+              <NavLink key={link.to} to={link.to}
+                onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) => `sidebar-btn ${isActive ? 'active' : ''}`}>
                 {link.label}
               </NavLink>
@@ -754,7 +762,7 @@ export default function App() {
             </Routes>
           </main>
 
-          {/* Hamburger button (mobile only) */}
+          {/* Floating hamburger — mobile only */}
           <button className="hamburger" onClick={() => setSidebarOpen(!sidebarOpen)}>
             {sidebarOpen ? '✕' : '☰'}
           </button>
@@ -763,74 +771,3 @@ export default function App() {
     </BrowserRouter>
   );
 }
-
-  if (authLoading) return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0a0a0a' }}>
-      <p style={{ color: '#a78bfa', fontSize: '1.2rem' }}>⏳ Loading...</p>
-    </div>
-  );
-
-  if (!user) return <LoginPage onLogin={setUser} />;
-
-  return (
-    <BrowserRouter>
-      <div className="app">
-        <header className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px' }}>
-          <div>
-            <h1>🕵️ SocialSpy</h1>
-            <p>AI-Powered Digital Footprint Analyzer</p>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <p style={{ color: '#888', fontSize: '0.8rem', marginBottom: '6px' }}>👤 {user.email}</p>
-            <button
-              onClick={() => signOut(auth)}
-              className="btn"
-              style={{ background: '#1a1a1a', border: '1px solid #ff4444', color: '#ff6666', fontSize: '0.8rem', padding: '6px 14px' }}>
-              🚪 Logout
-            </button>
-          </div>
-        </header>
-        <div className="app-body">
-          <nav className="sidebar">
-            <span className="sidebar-label">Core</span>
-            {NAV_LINKS.filter(l => l.group === 'Core').map(link => (
-              <NavLink key={link.to} to={link.to} end={link.to === '/'} className={({ isActive }) => `sidebar-btn ${isActive ? 'active' : ''}`}>
-                {link.label}
-              </NavLink>
-            ))}
-            <div className="sidebar-divider" />
-            <span className="sidebar-label">Advanced</span>
-            {NAV_LINKS.filter(l => l.group === 'Advanced').map(link => (
-              <NavLink key={link.to} to={link.to} className={({ isActive }) => `sidebar-btn ${isActive ? 'active' : ''}`}>
-                {link.label}
-              </NavLink>
-            ))}
-            <div className="sidebar-divider" />
-            <span className="sidebar-label" style={{ color: '#34d399' }}>✨ New</span>
-            {NAV_LINKS.filter(l => l.group === 'New').map(link => (
-              <NavLink key={link.to} to={link.to} className={({ isActive }) => `sidebar-btn ${isActive ? 'active' : ''}`}>
-                {link.label}
-              </NavLink>
-            ))}
-          </nav>
-          <main className="main">
-            <Routes>
-              <Route path="/" element={<SearchPage />} />
-              <Route path="/breach" element={<BreachPage />} />
-              <Route path="/compare" element={<ComparePage />} />
-              <Route path="/personality" element={<PersonalityPage />} />
-              <Route path="/location" element={<LocationPage />} />
-              <Route path="/monitor" element={<MonitorPage />} />
-              <Route path="/news" element={<NewsPage />} />
-              <Route path="/password" element={<PasswordPage />} />
-              <Route path="/avatars" element={<AvatarsPage />} />
-              <Route path="/network" element={<NetworkPage />} />
-              <Route path="/timeline" element={<TimelinePage />} />
-              <Route path="/darkweb" element={<DarkWebPage />} />
-              <Route path="/score" element={<ScorePage />} />
-            </Routes>
-          </main>
-        </div>
-      </div>
-    </BrowserRouter>
-  );
